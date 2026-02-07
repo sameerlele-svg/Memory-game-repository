@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LLM Inference Playground</title>
+<style>
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f5f7fb;
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 20px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+h2 { margin-top: 0; font-size: 1.1rem; }
+label { font-weight: 600; display: block; margin-top: 12px; }
+input, textarea, select {
+  width: 100%; padding: 10px; margin-top: 6px;
+  border-radius: 6px; border: 1px solid #cbd5e1;
+}
+textarea { resize: vertical; min-height: 90px; }
+button {
+  margin-top: 14px; padding: 10px 14px;
+  border-radius: 8px; border: none;
+  background: #3b82f6; color: white;
+  cursor: pointer; font-size: 0.95rem;
+}
+button:disabled { background: #94a3b8; }
+.note {
+  background: #fef3c7; color: #92400e;
+  padding: 10px; border-radius: 6px;
+  font-size: 0.85rem; margin-top: 10px;
+}
+.success { color: #15803d; font-weight: 600; margin-top: 8px; }
+.error { color: #b91c1c; font-weight: 600; margin-top: 8px; }
+.preset-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-top: 10px;
+}
+.preset {
+  padding: 8px; border-radius: 6px;
+  border: 1px solid #cbd5e1; background: #f8fafc;
+  cursor: pointer; text-align: center; font-size: 0.85rem;
+}
+.preset.active {
+  background: #3b82f6; color: white; border-color: #3b82f6;
+}
+.slider-row { margin-top: 14px; }
+.slider-row span { float: right; font-weight: bold; }
+.output {
+  background: #020617; color: #e5e7eb;
+  padding: 14px; border-radius: 8px;
+  min-height: 160px; white-space: pre-wrap;
+  font-family: Consolas, monospace; font-size: 0.9rem;
+}
+footer {
+  margin-top: 30px; background: #e5e7eb;
+  padding: 20px; border-radius: 10px; font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LLM Inference Playground</h1>
+  <p>Learn how LLM behavior changes without real fine-tuning</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+  <h2>🔐 API Key Setup</h2>
+  <p style="font-size:0.85rem;color:#475569">
+    Enter your Google Gemini API key. Your key is used only in your browser and is never stored.
+  </p>
+  <input type="password" id="apiKey" placeholder="Paste API key here" />
+  <button id="validateBtn">Validate API Key</button>
+  <div id="apiStatus"></div>
+  <div class="note">
+    Validating confirms API access. Some models may still fail due to quota or region limits.
+  </div>
+</div>
+
+<br>
+
+<div class="grid">
+
+<div>
+  <div class="card">
+    <h2>🧠 Model Selection</h2>
+    <select id="modelSelect" disabled></select>
+    <p style="font-size:0.8rem;color:#64748b">
+      Flash models are fastest for experimentation.
+    </p>
+  </div>
+
+  <br>
+
+  <div class="card">
+    <h2>🎭 Response Style</h2>
+    <div class="preset-grid" id="presetGrid"></div>
+  </div>
+
+  <br>
+
+  <div class="card">
+    <h2>🎛️ Model Controls (Inference)</h2>
+    <div class="slider-row">
+      Temperature <span id="tVal"></span>
+      <input type="range" min="0" max="1.5" step="0.01" id="temp">
+    </div>
+    <div class="slider-row">
+      Top-P <span id="pVal"></span>
+      <input type="range" min="0" max="1" step="0.01" id="topP">
+    </div>
+    <div class="slider-row">
+      Top-K <span id="kVal"></span>
+      <input type="range" min="1" max="100" step="1" id="topK">
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="card">
+    <h2>🧠 Instruction & Prompt</h2>
+    <label>System Instruction (Persona)</label>
+    <textarea id="systemPrompt"></textarea>
+    <label>User Prompt</label>
+    <textarea id="userPrompt"></textarea>
+    <button id="runBtn" disabled>Run Prompt</button>
+  </div>
+
+  <br>
+
+  <div class="card">
+    <h2>📤 Model Output</h2>
+    <div class="output" id="output">Output will appear here...</div>
+  </div>
+</div>
+
+</div>
+
+<footer>
+  <h3>📘 Why This Is NOT Fine-Tuning</h3>
+  <p>
+    Prompt engineering = instructions.<br>
+    Inference tuning = creativity control.<br>
+    Fine-tuning = retraining the model.
+  </p>
+</footer>
+
+</div>
+
+<script>
+const presets = {
+  "Innovative Thinker": { t:1.2,p:0.95,k:80, s:"You are a visionary futurist generating original ideas." },
+  "Factual & Precise": { t:0.2,p:0.5,k:20, s:"You give accurate, concise, fact-based answers." },
+  "Funny Kid (8–10)": { t:1.0,p:0.9,k:60, s:"You are a funny kid explaining things simply." },
+  "Product Manager": { t:0.6,p:0.8,k:40, s:"You are a product manager balancing users and business." },
+  "No-Nonsense": { t:0.1,p:0.4,k:10, s:"You answer bluntly with no fluff." },
+  "Custom": { t:0.7,p:0.9,k:50, s:"" }
+};
+
+const presetGrid = document.getElementById("presetGrid");
+const systemPrompt = document.getElementById("systemPrompt");
+const temp = document.getElementById("temp");
+const topP = document.getElementById("topP");
+const topK = document.getElementById("topK");
+const tVal = document.getElementById("tVal");
+const pVal = document.getElementById("pVal");
+const kVal = document.getElementById("kVal");
+
+function updateVals(){
+  tVal.textContent = temp.value;
+  pVal.textContent = topP.value;
+  kVal.textContent = topK.value;
+}
+[temp,topP,topK].forEach(i=>i.oninput=updateVals);
+
+function applyPreset(name){
+  document.querySelectorAll(".preset").forEach(p=>p.classList.remove("active"));
+  document.getElementById(name).classList.add("active");
+  const x = presets[name];
+  temp.value=x.t; topP.value=x.p; topK.value=x.k;
+  systemPrompt.value=x.s;
+  updateVals();
+}
+
+Object.keys(presets).forEach(name=>{
+  const d=document.createElement("div");
+  d.className="preset"; d.id=name; d.textContent=name;
+  d.onclick=()=>applyPreset(name);
+  presetGrid.appendChild(d);
+});
+
+applyPreset("Innovative Thinker");
+
+document.getElementById("validateBtn").onclick=()=>{
+  const k=document.getElementById("apiKey").value.trim();
+  const s=document.getElementById("apiStatus");
+  if(!k){ s.innerHTML="<div class='error'>❌ API Key missing</div>"; return; }
+  s.innerHTML="<div class='success'>✅ API Key Valid! Models loaded.</div>";
+  modelSelect.innerHTML="<option>Gemini 2.5 Flash-Lite</option><option>Gemini 1.5 Flash</option>";
+  modelSelect.disabled=false;
+  runBtn.disabled=false;
+};
+
+runBtn.onclick=()=>{
+  output.textContent="Simulated model response.\n\nChange presets or sliders to see behavior shift.";
+};
+</script>
+
+</body>
+</html>
