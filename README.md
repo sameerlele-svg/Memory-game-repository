@@ -12,10 +12,12 @@ A responsive and accessible Memory (Concentration) card game built with HTML, CS
 - Keyboard controls for accessibility
 - Responsive design for all devices
 - No external dependencies
+ - Dark mode toggle with system preference support
 
 ## How to Play
 
 1. Open `memory-game.html` in a web browser
+ 1. Use the theme toggle in the top-right to switch between light and dark modes (preference is saved in your browser)
 2. Click or use keyboard (Tab + Enter/Space) to flip cards
 3. Find matching pairs to win
 4. Try to complete the game with as few moves as possible

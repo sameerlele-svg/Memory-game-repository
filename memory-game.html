@@ -1,506 +1,728 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Memory Game</title>
+    <script>
+      /* Early theme detection to prevent FOUC (Flash of Unstyled Content) */
+      (function() {
+        var savedTheme = localStorage.getItem('memoryGame.theme');
+        var theme = savedTheme;
+        if (!theme) {
+          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <style>
-        /* Reset default styles and set up CSS custom properties for theming */
-        :root {
-            --primary-color: #2196f3;
-            --background-color: #f5f5f5;
-            --card-back: #1976d2;
-            --card-front: #ffffff;
-            --text-color: #333333;
-            --success-color: #4caf50;
-        }
+      /* Reset default styles and set up CSS custom properties for theming */
+      :root {
+        --primary-color: #2196f3;
+        --background-color: #f5f5f5;
+        --surface-color: #ffffff;
+        --border-color: #e0e0e0;
+        --card-back: #1976d2;
+        --card-front: #ffffff;
+        --text-color: #333333;
+        --text-secondary: #666666;
+        --success-color: #4caf50;
+        --elevation-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      /* Dark theme overrides applied when <html data-theme="dark"> */
+      :root[data-theme="dark"] {
+        --primary-color: #90caf9;
+        --background-color: #121212;
+        --surface-color: #1f1f1f;
+        --border-color: #333333;
+        --card-back: #1e88e5;
+        --card-front: #1f1f1f;
+        --text-color: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --success-color: #66bb6a;
+        --elevation-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
 
-        /* Base styles for responsive typography and spacing */
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            padding: 20px;
-            min-height: 100vh;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        /* Main container with max-width for larger screens */
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
+      /* Base styles for responsive typography and spacing */
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        min-height: 100vh;
+      }
 
-        /* Game header styles */
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
+      /* Main container with max-width for larger screens */
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
 
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
+      /* Game header styles */
+      .header {
+        text-align: center;
+        margin-bottom: 2rem;
+        position: relative;
+      }
 
-        /* Game controls and statistics panel */
+      /* Theme toggle in header */
+      .theme-toggle {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+      }
+
+      .theme-toggle button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 32px;
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-color);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+      }
+
+      .theme-toggle button:hover {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      .theme-toggle button:focus {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+
+      /* Visually hidden ARIA live region for theme announcements */
+      .sr-live-region {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      /* Game controls and statistics panel */
+      .controls {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 1rem;
+        background: var(--surface-color);
+        color: var(--text-color);
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--elevation-shadow);
+        margin-bottom: 2rem;
+        transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+      }
+
+      .stat {
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.25rem;
+        font-weight: bold;
+      }
+
+      /* Grid size selector styles */
+      .grid-selector {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      button {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        background: var(--primary-color);
+        color: white;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #1565c0;
+      }
+
+      button.active {
+        background-color: #0d47a1;
+      }
+
+      /* Game grid styles with responsive layout */
+      .game-grid {
+        display: grid;
+        gap: 10px;
+        margin: 0 auto;
+        perspective: 1000px; /* For 3D card flip effect */
+      }
+
+      .grid-4x4 {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 600px;
+      }
+
+      .grid-6x6 {
+        grid-template-columns: repeat(6, 1fr);
+        max-width: 800px;
+      }
+
+      /* Card styles with 3D flip animation */
+      .card {
+        aspect-ratio: 3/4;
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s;
+        cursor: pointer;
+      }
+
+      .card:focus {
+        outline: 3px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+
+      .card[aria-pressed="true"] {
+        transform: rotateY(180deg);
+      }
+
+      .card.matched {
+        transform: rotateY(180deg);
+        cursor: default;
+      }
+
+      .card-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .card-front {
+        background: var(--card-front);
+        transform: rotateY(180deg);
+      }
+
+      .card-back {
+        background: var(--card-back);
+        color: white;
+      }
+
+      /* Win modal styles */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+      }
+
+      /* Best scores section */
+      .best-scores {
+        margin-top: 2rem;
+        text-align: center;
+      }
+
+      .scores-list {
+        max-width: 600px;
+        margin: 1rem auto;
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+      }
+
+      /* Responsive design adjustments */
+      @media (max-width: 600px) {
         .controls {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 1rem;
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
+          flex-direction: column;
+          align-items: center;
         }
 
-        .stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.25rem;
-            font-weight: bold;
-        }
-
-        /* Grid size selector styles */
-        .grid-selector {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        button {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 4px;
-            background: var(--primary-color);
-            color: white;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #1565c0;
-        }
-
-        button.active {
-            background-color: #0d47a1;
-        }
-
-        /* Game grid styles with responsive layout */
         .game-grid {
-            display: grid;
-            gap: 10px;
-            margin: 0 auto;
-            perspective: 1000px; /* For 3D card flip effect */
-        }
-
-        .grid-4x4 {
-            grid-template-columns: repeat(4, 1fr);
-            max-width: 600px;
-        }
-
-        .grid-6x6 {
-            grid-template-columns: repeat(6, 1fr);
-            max-width: 800px;
-        }
-
-        /* Card styles with 3D flip animation */
-        .card {
-            aspect-ratio: 3/4;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.6s;
-            cursor: pointer;
-        }
-
-        .card:focus {
-            outline: 3px solid var(--primary-color);
-            outline-offset: 2px;
-        }
-
-        .card[aria-pressed="true"] {
-            transform: rotateY(180deg);
-        }
-
-        .card.matched {
-            transform: rotateY(180deg);
-            cursor: default;
+          gap: 5px;
         }
 
         .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          font-size: 1.5rem;
         }
-
-        .card-front {
-            background: var(--card-front);
-            transform: rotateY(180deg);
-        }
-
-        .card-back {
-            background: var(--card-back);
-            color: white;
-        }
-
-        /* Win modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-        }
-
-        /* Best scores section */
-        .best-scores {
-            margin-top: 2rem;
-            text-align: center;
-        }
-
-        .scores-list {
-            max-width: 600px;
-            margin: 1rem auto;
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-        }
-
-        /* Responsive design adjustments */
-        @media (max-width: 600px) {
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .game-grid {
-                gap: 5px;
-            }
-
-            .card-face {
-                font-size: 1.5rem;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <!-- Game header with title and instructions -->
-        <header class="header">
-            <h1>Memory Game</h1>
-            <p>Match all the pairs to win! Use keyboard or mouse to play.</p>
-        </header>
-
-        <!-- Game statistics panel -->
-        <div class="controls">
-            <div class="stat">
-                <h2>Moves</h2>
-                <p class="stat-value moves" aria-live="polite">0</p>
-            </div>
-            <div class="stat">
-                <h2>Time</h2>
-                <p class="stat-value timer" aria-live="polite">00:00</p>
-            </div>
-            <div class="stat">
-                <h2>Rating</h2>
-                <p class="stat-value rating" aria-live="polite">★★★</p>
-            </div>
+      <!-- Game header with title, instructions and theme toggle -->
+      <header class="header">
+        <h1>🎮 Memory Game</h1>
+        <p>Flip cards to find matching pairs!</p>
+        <div class="theme-toggle">
+          <button id="theme-toggle" role="switch" aria-checked="false" aria-label="Toggle dark mode">☀️</button>
         </div>
+      </header>
+      
+      <!-- ARIA live region for theme announcements -->
+      <div class="sr-live-region" id="theme-announcement" aria-live="polite" aria-atomic="true"></div>
 
-        <!-- Grid size selector -->
-        <div class="grid-selector">
-            <button class="grid-btn active" data-size="4">4x4 Grid</button>
-            <button class="grid-btn" data-size="6">6x6 Grid</button>
+      <!-- Game statistics panel -->
+      <div class="controls">
+        <div class="stat">
+          <h2>Moves</h2>
+          <p class="stat-value moves" aria-live="polite">0</p>
         </div>
-
-        <!-- Game grid -->
-        <div class="game-grid grid-4x4" role="grid" aria-label="Memory Game Grid"></div>
-
-        <!-- Best scores section -->
-        <div class="best-scores">
-            <h2>Best Scores</h2>
-            <div class="scores-list"></div>
+        <div class="stat">
+          <h2>Time</h2>
+          <p class="stat-value timer" aria-live="polite">00:00</p>
         </div>
+        <div class="stat">
+          <h2>Rating</h2>
+          <p class="stat-value rating" aria-live="polite">★★★</p>
+        </div>
+      </div>
+
+      <!-- Grid size selector -->
+      <div class="grid-selector">
+        <button class="grid-btn active" data-size="4">4x4 Grid</button>
+        <button class="grid-btn" data-size="6">6x6 Grid</button>
+      </div>
+
+      <!-- Game grid -->
+      <div
+        class="game-grid grid-4x4"
+        role="grid"
+        aria-label="Memory Game Grid"
+      ></div>
+
+      <!-- Best scores section -->
+      <div class="best-scores">
+        <h2>Best Scores</h2>
+        <div class="scores-list"></div>
+      </div>
     </div>
 
     <!-- Win modal -->
     <div class="modal" role="dialog" aria-label="Game Complete">
-        <div class="modal-content">
-            <h2>Congratulations!</h2>
-            <p>You've completed the game!</p>
-            <p class="final-stats"></p>
-            <button class="play-again">Play Again</button>
-        </div>
+      <div class="modal-content">
+        <h2>Congratulations!</h2>
+        <p>You've completed the game!</p>
+        <p class="final-stats"></p>
+        <button class="play-again">Play Again</button>
+      </div>
     </div>
 
     <script>
-        // Game state management
-        const gameState = {
-            moves: 0,
-            matches: 0,
-            timer: 0,
-            timerInterval: null,
-            firstCard: null,
-            secondCard: null,
-            canFlip: true,
-            gridSize: 4,
-            totalPairs: 8,
-            gameStarted: false
-        };
+      // Game state management
 
-        // DOM Elements
-        const elements = {
-            grid: document.querySelector('.game-grid'),
-            moves: document.querySelector('.moves'),
-            timer: document.querySelector('.timer'),
-            rating: document.querySelector('.rating'),
-            modal: document.querySelector('.modal'),
-            finalStats: document.querySelector('.final-stats'),
-            gridButtons: document.querySelectorAll('.grid-btn'),
-            scoresList: document.querySelector('.scores-list')
-        };
+      // Theme handling (dark mode toggle, persistence, and system preference)
+      const THEME_KEY = 'memoryGame.theme';
 
-        // Card symbols (emojis) for both grid sizes
-        const symbols = {
-            '4x4': ['🎨', '🎭', '🎪', '🎫', '🎯', '🎲', '🎮', '🎰'],
-            '6x6': ['🎨', '🎭', '🎪', '🎫', '🎯', '🎲', '🎮', '🎰', '🎱', '🎳', 
-                   '🎸', '🎺', '🎻', '🎹', '🎷', '🥁', '🎼', '🎵']
-        };
+      function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        const btn = document.getElementById('theme-toggle');
+        if (btn) {
+          btn.setAttribute('aria-checked', theme === 'dark');
+          btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+        }
+      }
 
-        // Shuffle array using Fisher-Yates algorithm
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
+      /* Public API for theme management (per PRD) */
+      function setTheme(theme) {
+        if (!['dark', 'light', 'system'].includes(theme)) {
+          console.warn('Invalid theme:', theme, '; using light');
+          theme = 'light';
+        }
+        if (theme === 'system') {
+          localStorage.removeItem(THEME_KEY);
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          applyTheme(prefersDark ? 'dark' : 'light');
+        } else {
+          applyTheme(theme);
+          localStorage.setItem(THEME_KEY, theme);
+        }
+        announceThemeChange(theme);
+      }
+
+      function getTheme() {
+        return document.documentElement.dataset.theme || 'light';
+      }
+
+      function announceThemeChange(theme) {
+        const announcement = document.getElementById('theme-announcement');
+        if (announcement) {
+          announcement.textContent = theme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled';
+        }
+      }
+
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        let theme = saved;
+        if (!theme) {
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          theme = prefersDark ? 'dark' : 'light';
+        }
+        applyTheme(theme);
+
+        // If user changes OS theme and hasn't chosen a preference, respect it
+        if (window.matchMedia) {
+          try {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+              if (!localStorage.getItem(THEME_KEY)) {
+                applyTheme(e.matches ? 'dark' : 'light');
+              }
+            });
+          } catch (e) {
+            // Older browsers may use addListener
+            const mq = window.matchMedia('(prefers-color-scheme: dark)');
+            if (mq.addListener) mq.addListener(e => {
+              if (!localStorage.getItem(THEME_KEY)) {
+                applyTheme(e.matches ? 'dark' : 'light');
+              }
+            });
+          }
         }
 
-        // Create a single card element
-        function createCard(symbol, index) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.setAttribute('role', 'gridcell');
-            card.setAttribute('aria-pressed', 'false');
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('aria-label', `Card ${index + 1}`);
-            
-            card.innerHTML = `
+        const toggleBtn = document.getElementById('theme-toggle');
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            const current = getTheme();
+            const next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+            window.dispatchEvent(new CustomEvent('theme_toggle', { detail: { from: current, to: next, source: 'toggle' } }));
+          });
+
+          toggleBtn.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault();
+              toggleBtn.click();
+            }
+          });
+        }
+      }
+
+      // initialize theme before other UI setup
+      initTheme();
+
+      const gameState = {
+        moves: 0,
+        matches: 0,
+        timer: 0,
+        timerInterval: null,
+        firstCard: null,
+        secondCard: null,
+        canFlip: true,
+        gridSize: 4,
+        totalPairs: 8,
+        gameStarted: false,
+      };
+
+      // DOM Elements
+      const elements = {
+        grid: document.querySelector(".game-grid"),
+        moves: document.querySelector(".moves"),
+        timer: document.querySelector(".timer"),
+        rating: document.querySelector(".rating"),
+        modal: document.querySelector(".modal"),
+        finalStats: document.querySelector(".final-stats"),
+        gridButtons: document.querySelectorAll(".grid-btn"),
+        scoresList: document.querySelector(".scores-list"),
+      };
+
+      // Card symbols (emojis) for both grid sizes
+      const symbols = {
+        "4x4": ["🎨", "🎭", "🎪", "🎫", "🎯", "🎲", "🎮", "🎰"],
+        "6x6": [
+          "🎨",
+          "🎭",
+          "🎪",
+          "🎫",
+          "🎯",
+          "🎲",
+          "🎮",
+          "🎰",
+          "🎱",
+          "🎳",
+          "🎸",
+          "🎺",
+          "🎻",
+          "🎹",
+          "🎷",
+          "🥁",
+          "🎼",
+          "🎵",
+        ],
+      };
+
+      // Shuffle array using Fisher-Yates algorithm
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      // Create a single card element
+      function createCard(symbol, index) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.setAttribute("role", "gridcell");
+        card.setAttribute("aria-pressed", "false");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", `Card ${index + 1}`);
+
+        card.innerHTML = `
                 <div class="card-face card-front">${symbol}</div>
                 <div class="card-face card-back">?</div>
             `;
-            
-            card.dataset.symbol = symbol;
-            return card;
+
+        card.dataset.symbol = symbol;
+        return card;
+      }
+
+      // Initialize or reset game grid
+      function initializeGrid() {
+        // Clear existing grid and reset game state
+        elements.grid.innerHTML = "";
+        gameState.moves = 0;
+        gameState.matches = 0;
+        gameState.firstCard = null;
+        gameState.secondCard = null;
+        gameState.canFlip = true;
+        gameState.gameStarted = false;
+
+        // Reset display elements
+        elements.moves.textContent = "0";
+        elements.rating.textContent = "★★★";
+        clearInterval(gameState.timerInterval);
+        gameState.timer = 0;
+        elements.timer.textContent = "00:00";
+
+        // Set up grid based on selected size
+        const currentSymbols =
+          symbols[`${gameState.gridSize}x${gameState.gridSize}`];
+        gameState.totalPairs = currentSymbols.length;
+
+        // Update grid class for correct layout
+        elements.grid.className = `game-grid grid-${gameState.gridSize}x${gameState.gridSize}`;
+
+        // Create and shuffle cards
+        const shuffledSymbols = shuffle([...currentSymbols, ...currentSymbols]);
+        shuffledSymbols.forEach((symbol, index) => {
+          elements.grid.appendChild(createCard(symbol, index));
+        });
+      }
+
+      // Start game timer
+      function startTimer() {
+        if (!gameState.gameStarted) {
+          gameState.gameStarted = true;
+          gameState.timerInterval = setInterval(() => {
+            gameState.timer++;
+            const minutes = Math.floor(gameState.timer / 60);
+            const seconds = gameState.timer % 60;
+            elements.timer.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+          }, 1000);
         }
+      }
 
-        // Initialize or reset game grid
-        function initializeGrid() {
-            // Clear existing grid and reset game state
-            elements.grid.innerHTML = '';
-            gameState.moves = 0;
-            gameState.matches = 0;
-            gameState.firstCard = null;
-            gameState.secondCard = null;
-            gameState.canFlip = true;
-            gameState.gameStarted = false;
-            
-            // Reset display elements
-            elements.moves.textContent = '0';
-            elements.rating.textContent = '★★★';
-            clearInterval(gameState.timerInterval);
-            gameState.timer = 0;
-            elements.timer.textContent = '00:00';
+      // Update star rating based on number of moves
+      function updateRating() {
+        const moves = gameState.moves;
+        const maxMoves = gameState.totalPairs * 2.5;
 
-            // Set up grid based on selected size
-            const currentSymbols = symbols[`${gameState.gridSize}x${gameState.gridSize}`];
-            gameState.totalPairs = currentSymbols.length;
-            
-            // Update grid class for correct layout
-            elements.grid.className = `game-grid grid-${gameState.gridSize}x${gameState.gridSize}`;
-            
-            // Create and shuffle cards
-            const shuffledSymbols = shuffle([...currentSymbols, ...currentSymbols]);
-            shuffledSymbols.forEach((symbol, index) => {
-                elements.grid.appendChild(createCard(symbol, index));
-            });
+        if (moves <= maxMoves) {
+          elements.rating.textContent = "★★★";
+        } else if (moves <= maxMoves * 1.5) {
+          elements.rating.textContent = "★★☆";
+        } else {
+          elements.rating.textContent = "★☆☆";
         }
+      }
 
-        // Start game timer
-        function startTimer() {
-            if (!gameState.gameStarted) {
-                gameState.gameStarted = true;
-                gameState.timerInterval = setInterval(() => {
-                    gameState.timer++;
-                    const minutes = Math.floor(gameState.timer / 60);
-                    const seconds = gameState.timer % 60;
-                    elements.timer.textContent = 
-                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }, 1000);
-            }
-        }
+      // Check for win condition and handle game completion
+      function checkWin() {
+        if (gameState.matches === gameState.totalPairs) {
+          clearInterval(gameState.timerInterval);
 
-        // Update star rating based on number of moves
-        function updateRating() {
-            const moves = gameState.moves;
-            const maxMoves = gameState.totalPairs * 2.5;
-            
-            if (moves <= maxMoves) {
-                elements.rating.textContent = '★★★';
-            } else if (moves <= maxMoves * 1.5) {
-                elements.rating.textContent = '★★☆';
-            } else {
-                elements.rating.textContent = '★☆☆';
-            }
-        }
+          // Save score to localStorage
+          const score = {
+            moves: gameState.moves,
+            time: gameState.timer,
+            rating: elements.rating.textContent,
+            gridSize: gameState.gridSize,
+            date: new Date().toISOString(),
+          };
 
-        // Check for win condition and handle game completion
-        function checkWin() {
-            if (gameState.matches === gameState.totalPairs) {
-                clearInterval(gameState.timerInterval);
-                
-                // Save score to localStorage
-                const score = {
-                    moves: gameState.moves,
-                    time: gameState.timer,
-                    rating: elements.rating.textContent,
-                    gridSize: gameState.gridSize,
-                    date: new Date().toISOString()
-                };
-                
-                const scores = JSON.parse(localStorage.getItem('memoryGameScores') || '[]');
-                scores.push(score);
-                scores.sort((a, b) => a.moves - b.moves);
-                localStorage.setItem('memoryGameScores', JSON.stringify(scores.slice(0, 5)));
-                
-                // Show win modal
-                elements.finalStats.textContent = `
+          const scores = JSON.parse(
+            localStorage.getItem("memoryGameScores") || "[]",
+          );
+          scores.push(score);
+          scores.sort((a, b) => a.moves - b.moves);
+          localStorage.setItem(
+            "memoryGameScores",
+            JSON.stringify(scores.slice(0, 5)),
+          );
+
+          // Show win modal
+          elements.finalStats.textContent = `
                     Moves: ${gameState.moves}
                     Time: ${elements.timer.textContent}
                     Rating: ${elements.rating.textContent}
                 `;
-                elements.modal.style.display = 'flex';
-                
-                updateScoresList();
-            }
-        }
+          elements.modal.style.display = "flex";
 
-        // Update the display of best scores
-        function updateScoresList() {
-            const scores = JSON.parse(localStorage.getItem('memoryGameScores') || '[]');
-            elements.scoresList.innerHTML = scores.length ? 
-                scores.map((score, index) => `
+          updateScoresList();
+        }
+      }
+
+      // Update the display of best scores
+      function updateScoresList() {
+        const scores = JSON.parse(
+          localStorage.getItem("memoryGameScores") || "[]",
+        );
+        elements.scoresList.innerHTML = scores.length
+          ? scores
+              .map(
+                (score, index) => `
                     <p>${index + 1}. ${score.gridSize}x${score.gridSize} Grid - 
                        ${score.moves} Moves, 
-                       Time: ${Math.floor(score.time / 60)}:${(score.time % 60).toString().padStart(2, '0')}, 
+                       Time: ${Math.floor(score.time / 60)}:${(score.time % 60).toString().padStart(2, "0")}, 
                        Rating: ${score.rating}</p>
-                `).join('') :
-                '<p>No scores yet. Start playing to set some records!</p>';
+                `,
+              )
+              .join("")
+          : "<p>No scores yet. Start playing to set some records!</p>";
+      }
+
+      // Handle card flip logic
+      function flipCard(card) {
+        if (
+          !gameState.canFlip ||
+          card.classList.contains("matched") ||
+          card.getAttribute("aria-pressed") === "true"
+        )
+          return;
+
+        startTimer();
+        card.setAttribute("aria-pressed", "true");
+
+        if (!gameState.firstCard) {
+          gameState.firstCard = card;
+        } else if (!gameState.secondCard && card !== gameState.firstCard) {
+          gameState.secondCard = card;
+          gameState.canFlip = false;
+          gameState.moves++;
+          elements.moves.textContent = gameState.moves;
+          updateRating();
+
+          // Check for match
+          if (
+            gameState.firstCard.dataset.symbol ===
+            gameState.secondCard.dataset.symbol
+          ) {
+            gameState.matches++;
+            gameState.firstCard.classList.add("matched");
+            gameState.secondCard.classList.add("matched");
+            gameState.firstCard.setAttribute("aria-label", "Matched");
+            gameState.secondCard.setAttribute("aria-label", "Matched");
+            gameState.firstCard = null;
+            gameState.secondCard = null;
+            gameState.canFlip = true;
+            checkWin();
+          } else {
+            // No match - flip cards back
+            setTimeout(() => {
+              gameState.firstCard.setAttribute("aria-pressed", "false");
+              gameState.secondCard.setAttribute("aria-pressed", "false");
+              gameState.firstCard = null;
+              gameState.secondCard = null;
+              gameState.canFlip = true;
+            }, 1000);
+          }
         }
+      }
 
-        // Handle card flip logic
-        function flipCard(card) {
-            if (!gameState.canFlip || card.classList.contains('matched') || 
-                card.getAttribute('aria-pressed') === 'true') return;
+      // Event Listeners
+      elements.grid.addEventListener("click", (e) => {
+        const card = e.target.closest(".card");
+        if (card) flipCard(card);
+      });
 
-            startTimer();
-            card.setAttribute('aria-pressed', 'true');
-
-            if (!gameState.firstCard) {
-                gameState.firstCard = card;
-            } else if (!gameState.secondCard && card !== gameState.firstCard) {
-                gameState.secondCard = card;
-                gameState.canFlip = false;
-                gameState.moves++;
-                elements.moves.textContent = gameState.moves;
-                updateRating();
-
-                // Check for match
-                if (gameState.firstCard.dataset.symbol === gameState.secondCard.dataset.symbol) {
-                    gameState.matches++;
-                    gameState.firstCard.classList.add('matched');
-                    gameState.secondCard.classList.add('matched');
-                    gameState.firstCard.setAttribute('aria-label', 'Matched');
-                    gameState.secondCard.setAttribute('aria-label', 'Matched');
-                    gameState.firstCard = null;
-                    gameState.secondCard = null;
-                    gameState.canFlip = true;
-                    checkWin();
-                } else {
-                    // No match - flip cards back
-                    setTimeout(() => {
-                        gameState.firstCard.setAttribute('aria-pressed', 'false');
-                        gameState.secondCard.setAttribute('aria-pressed', 'false');
-                        gameState.firstCard = null;
-                        gameState.secondCard = null;
-                        gameState.canFlip = true;
-                    }, 1000);
-                }
-            }
+      elements.grid.addEventListener("keydown", (e) => {
+        const card = e.target.closest(".card");
+        if (card && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          flipCard(card);
         }
+      });
 
-        // Event Listeners
-        elements.grid.addEventListener('click', (e) => {
-            const card = e.target.closest('.card');
-            if (card) flipCard(card);
-        });
-
-        elements.grid.addEventListener('keydown', (e) => {
-            const card = e.target.closest('.card');
-            if (card && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                flipCard(card);
-            }
-        });
-
-        document.querySelector('.play-again').addEventListener('click', () => {
-            elements.modal.style.display = 'none';
-            initializeGrid();
-        });
-
-        elements.gridButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const size = parseInt(button.dataset.size);
-                if (size !== gameState.gridSize) {
-                    gameState.gridSize = size;
-                    elements.gridButtons.forEach(btn => btn.classList.toggle('active'));
-                    initializeGrid();
-                }
-            });
-        });
-
-        // Initialize game
-        updateScoresList();
+      document.querySelector(".play-again").addEventListener("click", () => {
+        elements.modal.style.display = "none";
         initializeGrid();
+      });
+
+      elements.gridButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const size = parseInt(button.dataset.size);
+          if (size !== gameState.gridSize) {
+            gameState.gridSize = size;
+            elements.gridButtons.forEach((btn) =>
+              btn.classList.toggle("active"),
+            );
+            initializeGrid();
+          }
+        });
+      });
+
+      // Initialize game
+      updateScoresList();
+      initializeGrid();
     </script>
-</body>
+  </body>
 </html>
